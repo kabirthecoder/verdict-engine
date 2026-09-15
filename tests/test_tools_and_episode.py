@@ -10,7 +10,7 @@ class Lookup(ToolResult):
     package: str
     vulns: list[str]
 
-    def summary(self) -> str:
+    def one_line(self) -> str:
         return f"{len(self.vulns)} vulns for {self.package}"
 
 

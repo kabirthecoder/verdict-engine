@@ -24,7 +24,7 @@ from verdict.graph.store import GraphStore
 class ToolResult(BaseModel):
     """Optional base for tool outputs that want to control their one-line summary."""
 
-    def summary(self) -> str:
+    def one_line(self) -> str:
         return ""
 
 
@@ -120,7 +120,7 @@ class ToolRuntime:
                 truncated = len(out) > self.max_output_chars
                 if truncated:
                     out = out[: self.max_output_chars] + "\n…[truncated]"
-                summary = result.summary() if isinstance(result, ToolResult) else ""
+                summary = result.one_line() if isinstance(result, ToolResult) else ""
                 ev = Evidence(
                     question_id=self.question_id,
                     tool=name,
