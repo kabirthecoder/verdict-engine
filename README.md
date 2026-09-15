@@ -25,7 +25,7 @@ package safe to adopt, is this vulnerability reachable, is this contributor's PR
 
 ## Status
 
-Early. Being built in the open, one commit at a time. See `docs/architecture.md` for the design
+Early. Being built in the open, See `docs/architecture.md` for the design
 and `docs/roadmap.md` for what's next.
 
 ## Quick start
