@@ -25,6 +25,7 @@ from sqlalchemy import (
     select,
 )
 from sqlalchemy.engine import Engine
+from sqlalchemy.pool import StaticPool
 
 from verdict.graph.models import (
     Attack,
@@ -133,7 +134,14 @@ def _author(a: Author) -> str:
 
 class GraphStore:
     def __init__(self, url: str = "sqlite:///verdict.db") -> None:
-        self.engine: Engine = create_engine(url, future=True)
+        kwargs: dict[str, Any] = {}
+        if url.startswith("sqlite"):
+            # tools run in worker threads; share one connection for sqlite (and keep
+            # in-memory databases visible across threads)
+            kwargs["connect_args"] = {"check_same_thread": False}
+            if url in ("sqlite://", "sqlite:///:memory:"):
+                kwargs["poolclass"] = StaticPool
+        self.engine: Engine = create_engine(url, future=True, **kwargs)
         metadata.create_all(self.engine)
 
     # --- writes (append-only) ------------------------------------------------
