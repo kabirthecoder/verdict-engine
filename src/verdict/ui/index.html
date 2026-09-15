@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>verdict-engine</title>
+<style>
+  :root {
+    --bg:#f3f5f8; --surface:#fff; --ink:#14202b; --muted:#5b6b7b; --line:#d5dce4;
+    --acc:#0f6e68; --acc-soft:#d7ebe9; --rej:#b3261e; --rej-soft:#f6dcda;
+    --und:#b7791f; --und-soft:#f7e8cc; --ev:#3b5b8a; --ev-soft:#dfe7f3; --code:#e9edf2;
+  }
+  @media (prefers-color-scheme: dark) { :root {
+    --bg:#0f151b; --surface:#171f27; --ink:#e6ebf0; --muted:#98a6b4; --line:#2b3641;
+    --acc:#5fc4bb; --acc-soft:#123b38; --rej:#f08a82; --rej-soft:#4a1f1c;
+    --und:#e0b060; --und-soft:#43331a; --ev:#8fb0e0; --ev-soft:#1f2e45; --code:#1f2932; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { display:flex; align-items:baseline; gap:1rem; padding:1rem 20px; border-bottom:1px solid var(--line); background:var(--surface); }
+  header h1 { font:500 1.25rem/1 Georgia, "Times New Roman", serif; margin:0; }
+  header span { color:var(--muted); font-size:.85rem; }
+  main { display:grid; grid-template-columns: 340px 1fr; gap:0; min-height:calc(100vh - 57px); }
+  aside { border-right:1px solid var(--line); background:var(--surface); padding:16px; display:flex; flex-direction:column; gap:12px; }
+  section { padding:20px; overflow:auto; }
+  form { display:flex; flex-direction:column; gap:8px; }
+  input, select, button, textarea { font:inherit; }
+  input, select { padding:.5rem .6rem; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--ink); width:100%; }
+  button { padding:.55rem .9rem; border:0; border-radius:6px; background:var(--acc); color:#fff; cursor:pointer; font-weight:500; }
+  button:disabled { opacity:.5; cursor:default; }
+  button.ghost { background:transparent; color:var(--acc); border:1px solid var(--line); }
+  .cases { display:flex; flex-direction:column; gap:6px; overflow:auto; }
+  .case { padding:.6rem .7rem; border:1px solid var(--line); border-radius:6px; cursor:pointer; background:var(--bg); }
+  .case.active { border-color:var(--acc); }
+  .case .q { font-size:.9rem; }
+  .case .meta { font-size:.75rem; color:var(--muted); display:flex; justify-content:space-between; margin-top:.2rem; font-family: ui-monospace, Menlo, monospace; }
+  .pill { display:inline-block; font-family:ui-monospace, Menlo, monospace; font-size:.72rem; padding:.05em .5em; border-radius:999px; font-weight:500; }
+  .accepted { background:var(--acc-soft); color:var(--acc); } .rejected { background:var(--rej-soft); color:var(--rej); }
+  .undecided { background:var(--und-soft); color:var(--und); } .unsupported { background:var(--code); color:var(--muted); }
+  .pending, .running, .queued { background:var(--und-soft); color:var(--und); } .failed { background:var(--rej-soft); color:var(--rej); }
+  .headline { font:500 1.6rem/1.2 Georgia, serif; margin:.2rem 0 .6rem; }
+  .headline.safe_to_adopt { color:var(--acc); } .headline.not_safe_to_adopt { color:var(--rej); } .headline.undecided { color:var(--und); }
+  .stats { color:var(--muted); font-size:.82rem; font-family:ui-monospace, Menlo, monospace; margin-bottom:1rem; }
+  .claim { border:1px solid var(--line); border-left:4px solid var(--line); border-radius:6px; background:var(--surface); padding:.7rem .9rem; margin:.6rem 0; }
+  .claim.accepted { border-left-color:var(--acc); } .claim.rejected { border-left-color:var(--rej); } .claim.undecided { border-left-color:var(--und); }
+  .claim .key { font-family:ui-monospace, Menlo, monospace; font-size:.82rem; color:var(--muted); }
+  .claim .text { margin:.25rem 0; }
+  .claim .why { font-size:.82rem; color:var(--muted); }
+  .cite { font-size:.82rem; margin:.3rem 0 0 .2rem; padding-left:.6rem; border-left:2px solid var(--ev); }
+  .cite code, .attack code { background:var(--code); padding:.05em .3em; border-radius:3px; font-size:.8rem; }
+  .cite.bad { border-left-color:var(--rej); }
+  .attack { font-size:.82rem; color:var(--rej); margin:.3rem 0 0 .2rem; }
+  details { margin-top:.4rem; } summary { cursor:pointer; font-size:.8rem; color:var(--ev); }
+  pre { background:var(--code); padding:.6rem; border-radius:6px; font-size:.75rem; overflow:auto; max-height:260px; margin:.4rem 0 0; }
+  .log { font-family:ui-monospace, Menlo, monospace; font-size:.78rem; color:var(--muted); white-space:pre-wrap; margin-top:1rem; border-top:1px solid var(--line); padding-top:.6rem; }
+  .empty { color:var(--muted); padding:2rem 0; }
+  @media (max-width: 800px) { main { grid-template-columns:1fr; } aside { border-right:0; border-bottom:1px solid var(--line); } }
+</style>
+</head>
+<body>
+<header><h1>verdict-engine</h1><span>claims · evidence · attacks → a verdict you can audit</span></header>
+<main>
+  <aside>
+    <form id="open">
+      <input id="question" placeholder="Is requests 2.28.0 safe to adopt?" required>
+      <select id="ecosystem"><option value="pypi">pypi</option><option value="npm">npm</option></select>
+      <button id="submit">Open case</button>
+    </form>
+    <div class="cases" id="cases"></div>
+  </aside>
+  <section id="view"><div class="empty">Open a case or pick one on the left.</div></section>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+let current = null, timer = null;
+
+async function api(path, opts) { const r = await fetch(path, opts); if (!r.ok) throw new Error(await r.text()); return r.json(); }
+
+async function loadCases() {
+  const cases = await api('/cases');
+  const el = $('#cases'); el.innerHTML = '';
+  for (const c of cases.slice().reverse()) {
+    const d = document.createElement('div');
+    d.className = 'case' + (c.id === current ? ' active' : '');
+    d.innerHTML = `<div class="q">${esc(c.question)}</div><div class="meta"><span>${c.id}</span><span class="pill ${c.status==='done'?c.headline:c.status}">${c.status==='done'?c.headline.replaceAll('_',' '):c.status}</span></div>`;
+    d.onclick = () => show(c.id);
+    el.appendChild(d);
+  }
+}
+
+$('#open').onsubmit = async (e) => {
+  e.preventDefault();
+  $('#submit').disabled = true;
+  try {
+    const r = await api('/cases', {method:'POST', headers:{'content-type':'application/json'},
+      body: JSON.stringify({question: $('#question').value, domain: 'supply-chain', context: {ecosystem: $('#ecosystem').value}})});
+    $('#question').value = '';
+    await loadCases(); show(r.id);
+  } catch (err) { alert(err.message); }
+  $('#submit').disabled = false;
+};
+
+async function show(id) {
+  current = id; clearTimeout(timer);
+  const [c, g] = await Promise.all([api('/cases/'+id), api('/cases/'+id+'/graph')]);
+  let events = []; try { events = await api('/cases/'+id+'/events'); } catch {}
+  render(c, g, events); loadCases();
+  if (c.status === 'queued' || c.status === 'running') timer = setTimeout(() => show(id), 2500);
+}
+
+function render(c, g, events) {
+  const ev = Object.fromEntries(g.evidence.map(e => [e.id, e]));
+  const audits = {}; for (const a of g.audits) (audits[a.support_id] ||= []).push(a);
+  const attacksOn = {}; for (const a of g.attacks) (attacksOn[a.target_id] ||= []).push(a);
+  const claimText = Object.fromEntries(g.claims.map(x => [x.id, x.text]));
+  const st = c.stats || {};
+  let html = `<div class="stats">${c.id} · ${c.status}${c.error ? ' · ' + esc(c.error) : ''}</div>`;
+  html += `<h2 class="headline ${c.headline}">${c.status==='done' ? c.headline.replaceAll('_',' ') : 'deliberating…'}</h2>`;
+  html += `<div><strong>${esc(c.question)}</strong></div>`;
+  if (c.status === 'done' && st.rounds !== undefined) html += `<div class="stats">${st.rounds} rounds · ${st.tool_calls} tool calls · ${st.claims} claims · ${st.attacks} attacks · ${st.audits_failed} failed audits · ${st.tokens} tokens · ${st.seconds}s · stopped: ${st.stop_reason}</div>`;
+  if (!g.claims.length) html += `<div class="empty">No claims yet.</div>`;
+  for (const cl of g.claims) {
+    const label = c.labels[cl.id] || 'undecided';
+    const params = Object.entries(cl.params).map(([k,v]) => `${k}=${v}`).join(', ');
+    html += `<div class="claim ${label}"><span class="pill ${label}">${label}</span> <span class="key">${esc(cl.kind)}(${esc(params)})</span> <span class="key">· ${cl.author.role}</span>`;
+    html += `<div class="text">${esc(cl.text)}</div>`;
+    for (const s of g.supports.filter(s => s.claim_id === cl.id)) {
+      const e = ev[s.evidence_id]; const au = audits[s.id] || []; const bad = au.some(a => !a.ok);
+      html += `<div class="cite ${bad?'bad':''}">${bad?'✗':au.length?'✓':'?'} <code>${esc(e.tool)}(${esc(JSON.stringify(e.args))})</code> → “${esc(s.quote.slice(0,160))}”${bad ? ' — <em>' + esc(au.find(a=>!a.ok).note) + '</em>' : ''}`;
+      html += `<details><summary>raw evidence ${e.id}</summary><pre>${esc(e.output.slice(0,4000))}</pre></details></div>`;
+    }
+    for (const a of attacksOn[cl.id] || []) html += `<div class="attack">⚔ attacked by <code>${esc(claimText[a.attacker_id]||a.attacker_id)}</code> — ${esc(a.rationale)}</div>`;
+    html += `</div>`;
+  }
+  if (events.length) html += `<div class="log">${events.map(esc).join('\n')}</div>`;
+  $('#view').innerHTML = html;
+}
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+loadCases();
+</script>
+</body>
+</html>

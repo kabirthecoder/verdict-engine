@@ -18,9 +18,11 @@ from __future__ import annotations
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from verdict import __version__
@@ -103,19 +105,27 @@ def headline(g: Graph) -> str:
     v = g.latest_verdict
     if v is None:
         return "pending"
-    kinds = get_domain(g.question.domain).conclusion_kinds
+    try:
+        kinds = get_domain(g.question.domain).conclusion_kinds
+    except KeyError:
+        kinds = []
     accepted = [c for c in g.claims if c.kind in kinds and v.labels.get(c.id) is Label.ACCEPTED]
     if accepted:
         return accepted[0].kind
     if any(c.kind in kinds for c in g.claims):
         return "undecided"
-    return "no_conclusion"
+    n = sum(1 for lab in v.labels.values() if lab is Label.ACCEPTED)
+    return f"{n}_accepted"
 
 
 def create_app(service: Service | None = None) -> FastAPI:
     svc = service or Service()
     app = FastAPI(title="verdict-engine", version=__version__)
     app.state.service = svc
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def ui() -> str:
+        return (Path(__file__).parent / "ui" / "index.html").read_text()
 
     @app.get("/health")
     def health() -> dict[str, Any]:
