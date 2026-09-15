@@ -11,8 +11,13 @@ class Settings(BaseSettings):
     llm_base_url: str = "http://localhost:11434/v1"
     llm_api_key: str = "ollama"
     llm_model: str = "qwen3:8b"
-    llm_temperature: float = 0.1
-    llm_timeout_s: float = 120.0
+    llm_temperature: float = 0.0
+    llm_timeout_s: float = 60.0
+    llm_max_tokens: int = 700
+    # Hybrid-reasoning backends (qwen3, deepseek-r1 via Ollama) can silently spend
+    # minutes on hidden "thinking" tokens per call. We turn that off by default:
+    # courts don't need chain-of-thought, they need fast, reproducible tool calls.
+    llm_think: bool = False
 
     database_url: str = "sqlite:///verdict.db"
 
