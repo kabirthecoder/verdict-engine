@@ -9,7 +9,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from verdict.domains.supply_chain.http import get_json, github_headers, post_json
+import httpx
+
+from verdict.domains.supply_chain.http import UpstreamError, get_json, github_headers, post_json
 from verdict.tools.registry import ToolResult, tool
 
 OSV = "https://api.osv.dev/v1"
@@ -47,10 +49,13 @@ class VulnQuery(ToolResult):
     ecosystem: str
     package: str
     version: str
+    source: str = "osv.dev"
     advisories: list[Advisory]
 
     def one_line(self) -> str:
-        return f"{len(self.advisories)} advisories for {self.package} {self.version}"
+        return (
+            f"{len(self.advisories)} advisories for {self.package} {self.version} ({self.source})"
+        )
 
 
 def _advisory(v: dict[str, Any], package: str | None = None) -> Advisory:
@@ -82,17 +87,70 @@ def _advisory(v: dict[str, Any], package: str | None = None) -> Advisory:
     )
 
 
+_GH_ECO = {"pypi": "pip", "npm": "npm", "go": "go", "cargo": "rust", "maven": "maven"}
+
+
+def _github_advisories(ecosystem: str, package: str, version: str) -> list[Advisory]:
+    """GitHub Advisory Database, filtered to advisories that affect this exact version.
+    Same data OSV mirrors for GHSA ids; used when OSV is unreachable."""
+    rows = (
+        get_json(
+            f"{GH}/advisories",
+            params={
+                "ecosystem": _GH_ECO[ecosystem.lower()],
+                "affects": f"{package}@{version}",
+                "per_page": 50,
+            },
+            headers=github_headers(),
+        )
+        or []
+    )
+    out: list[Advisory] = []
+    for r in rows:
+        ranges = [
+            {
+                "package": (v.get("package") or {}).get("name"),
+                "ecosystem": (v.get("package") or {}).get("ecosystem"),
+                "vulnerable_version_range": v.get("vulnerable_version_range"),
+                "patched_versions": v.get("patched_versions"),
+            }
+            for v in r.get("vulnerabilities", [])
+            if ((v.get("package") or {}).get("name") or "").lower() == package.lower()
+        ]
+        out.append(
+            Advisory(
+                id=r["ghsa_id"],
+                aliases=[r["cve_id"]] if r.get("cve_id") else [],
+                summary=(r.get("summary") or "")[:500],
+                severity=[{"type": "GHSA", "score": r.get("severity")}],
+                published=r.get("published_at"),
+                modified=r.get("updated_at"),
+                affected_ranges=ranges,
+                references=[r.get("html_url")] if r.get("html_url") else [],
+            )
+        )
+    return out
+
+
 @tool
 def osv_query(ecosystem: str, package: str, version: str) -> VulnQuery:
-    """Query the OSV.dev vulnerability database for advisories affecting one exact
-    package version. ecosystem: pypi | npm | go | cargo | maven."""
+    """Advisories affecting one exact package version. Primary source OSV.dev; falls back
+    to the GitHub Advisory Database if OSV is unreachable (the result says which).
+    ecosystem: pypi | npm | go | cargo | maven."""
     body = {"package": {"name": package, "ecosystem": _eco(ecosystem)}, "version": version}
-    data = post_json(f"{OSV}/query", body) or {}
+    try:
+        data = post_json(f"{OSV}/query", body) or {}
+        advisories = [_advisory(v, package) for v in data.get("vulns", [])]
+        source = "osv.dev"
+    except (httpx.TransportError, UpstreamError):
+        advisories = _github_advisories(ecosystem, package, version)
+        source = "github-advisory-db (osv.dev unreachable)"
     return VulnQuery(
         ecosystem=ecosystem,
         package=package,
         version=version,
-        advisories=[_advisory(v, package) for v in data.get("vulns", [])],
+        source=source,
+        advisories=advisories,
     )
 
 

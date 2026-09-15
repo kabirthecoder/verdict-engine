@@ -73,7 +73,7 @@ GH_COMMITS = [
 def test_osv_query_flattens_ranges():
     respx.post(f"{t.OSV}/query").mock(return_value=Response(200, json=OSV_QUERY))
     r = t.osv_query.invoke({"ecosystem": "pypi", "package": "requests", "version": "2.28.0"})
-    assert r.one_line() == "1 advisories for requests 2.28.0"
+    assert r.one_line() == "1 advisories for requests 2.28.0 (osv.dev)"
     adv = r.advisories[0]
     assert adv.id == "GHSA-9wx4-h78v-vm56" and adv.aliases == ["CVE-2024-35195"]
     assert adv.affected_ranges[0]["events"][1] == {"fixed": "2.32.0"}
@@ -132,3 +132,38 @@ def test_domain_registered_and_frames_question():
     assert (
         "package: requests" in frame and "version: 2.28.0" in frame and "ecosystem: pypi" in frame
     )
+
+
+@respx.mock
+def test_osv_falls_back_to_github_advisories():
+    import httpx
+
+    respx.post(f"{t.OSV}/query").mock(side_effect=httpx.ConnectError("blocked"))
+    respx.get(f"{t.GH}/advisories").mock(
+        return_value=Response(
+            200,
+            json=[
+                {
+                    "ghsa_id": "GHSA-9wx4-h78v-vm56",
+                    "cve_id": "CVE-2024-35195",
+                    "summary": "verify=False persists",
+                    "severity": "medium",
+                    "published_at": "2024-05-20T20:15:00Z",
+                    "updated_at": "2024-06-21T16:24:11Z",
+                    "html_url": "https://github.com/advisories/GHSA-9wx4-h78v-vm56",
+                    "vulnerabilities": [
+                        {
+                            "package": {"ecosystem": "pip", "name": "requests"},
+                            "vulnerable_version_range": "< 2.32.0",
+                            "patched_versions": "2.32.0",
+                        }
+                    ],
+                }
+            ],
+        )
+    )
+    r = t.osv_query.invoke({"ecosystem": "pypi", "package": "requests", "version": "2.28.0"})
+    assert r.source.startswith("github-advisory-db")
+    assert r.advisories[0].id == "GHSA-9wx4-h78v-vm56"
+    assert r.advisories[0].aliases == ["CVE-2024-35195"]
+    assert r.advisories[0].affected_ranges[0]["patched_versions"] == "2.32.0"
