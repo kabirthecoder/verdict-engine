@@ -1,0 +1,362 @@
+<title>verdict-engine Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg: #f3f5f8;
+    --surface: #ffffff;
+    --ink: #14202b;
+    --muted: #5b6b7b;
+    --line: #d5dce4;
+    --accent: #0f6e68;
+    --accent-soft: #d7ebe9;
+    --reject: #b3261e;
+    --reject-soft: #f6dcda;
+    --undec: #b7791f;
+    --undec-soft: #f7e8cc;
+    --evidence: #3b5b8a;
+    --evidence-soft: #dfe7f3;
+    --code-bg: #e9edf2;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f151b; --surface: #171f27; --ink: #e6ebf0; --muted: #98a6b4; --line: #2b3641;
+      --accent: #5fc4bb; --accent-soft: #123b38; --reject: #f08a82; --reject-soft: #4a1f1c;
+      --undec: #e0b060; --undec-soft: #43331a; --evidence: #8fb0e0; --evidence-soft: #1f2e45;
+      --code-bg: #1f2932;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f151b; --surface: #171f27; --ink: #e6ebf0; --muted: #98a6b4; --line: #2b3641;
+    --accent: #5fc4bb; --accent-soft: #123b38; --reject: #f08a82; --reject-soft: #4a1f1c;
+    --undec: #e0b060; --undec-soft: #43331a; --evidence: #8fb0e0; --evidence-soft: #1f2e45;
+    --code-bg: #1f2932;
+  }
+  body { background: var(--bg); color: var(--ink); margin: 0; padding-inline: 20px; padding-block: 40px 80px;
+         font: 16px/1.6 "IBM Plex Sans", system-ui, -apple-system, Segoe UI, sans-serif; }
+  main { max-width: 900px; margin: 0 auto; }
+  h1, h2, h3 { font-family: "Newsreader", Georgia, "Times New Roman", serif; font-weight: 500; text-wrap: balance; margin: 0; }
+  h1 { font-size: clamp(2.2rem, 5vw, 3.4rem); line-height: 1.05; letter-spacing: -0.01em; }
+  h2 { font-size: 1.75rem; line-height: 1.2; margin-top: 3.5rem; padding-top: 1.25rem; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.2rem; margin-top: 1.75rem; }
+  p, li { max-width: 68ch; }
+  p { margin: 0.9rem 0; }
+  .eyebrow { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.78rem; letter-spacing: 0.08em;
+             text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; }
+  .lede { font-size: 1.15rem; color: var(--muted); max-width: 62ch; }
+  .lede strong { color: var(--ink); font-weight: 500; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86em; }
+  code { background: var(--code-bg); padding: 0.1em 0.35em; border-radius: 3px; }
+  pre { background: var(--code-bg); padding: 1rem 1.2rem; border-radius: 6px; overflow-x: auto; line-height: 1.5; font-size: 0.84rem; }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  figure { margin: 1.5rem 0 0.5rem; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 0.86rem; color: var(--muted); margin-top: 0.5rem; max-width: 68ch; }
+  .diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.93rem; margin: 1rem 0; }
+  th, td { text-align: left; vertical-align: top; padding: 0.55rem 0.7rem; border-bottom: 1px solid var(--line); }
+  th { font-family: "IBM Plex Mono", monospace; font-weight: 500; font-size: 0.76rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .tablewrap { overflow-x: auto; }
+  .pill { display: inline-block; font-family: "IBM Plex Mono", monospace; font-size: 0.74rem; padding: 0.1em 0.5em; border-radius: 999px; font-weight: 500; }
+  .pill.acc { background: var(--accent-soft); color: var(--accent); }
+  .pill.rej { background: var(--reject-soft); color: var(--reject); }
+  .pill.und { background: var(--undec-soft); color: var(--undec); }
+  .pill.ev { background: var(--evidence-soft); color: var(--evidence); }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem 2rem; }
+  .rule { border: 0; border-top: 1px solid var(--line); margin: 2rem 0; }
+  ol.rules { padding-left: 1.3rem; }
+  ol.rules li { margin: 0.5rem 0; }
+  a { color: var(--accent); }
+  /* svg tokens */
+  svg text { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 13px; fill: var(--ink); }
+  svg .mono { font-family: "IBM Plex Mono", monospace; font-size: 11.5px; }
+  svg .muted { fill: var(--muted); }
+  svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+  svg .box.claim { fill: var(--surface); stroke: var(--ink); }
+  svg .box.ev { fill: var(--evidence-soft); stroke: var(--evidence); }
+  svg .box.acc { fill: var(--accent-soft); stroke: var(--accent); }
+  svg .box.rej { fill: var(--reject-soft); stroke: var(--reject); }
+  svg .box.und { fill: var(--undec-soft); stroke: var(--undec); }
+  svg .box.role { fill: var(--code-bg); stroke: var(--line); }
+  svg .edge { stroke: var(--muted); stroke-width: 1.3; fill: none; }
+  svg .edge.attack { stroke: var(--reject); stroke-width: 1.8; }
+  svg .edge.support { stroke: var(--evidence); stroke-dasharray: 4 3; }
+  svg .edge.loop { stroke: var(--accent); stroke-width: 1.6; }
+  svg .label { font-size: 11px; fill: var(--muted); }
+  svg .title { font-weight: 600; }
+  @media (prefers-reduced-motion: no-preference) { a { transition: color .15s; } }
+</style>
+
+<main>
+  <div class="eyebrow">verdict-engine · architecture · v0.1 · Sept 2026</div>
+  <h1>A court, not a supervisor.</h1>
+  <p class="lede">Multi-agent systems usually put one agent in charge and the rest follow. verdict-engine has no one in charge. Agents write <strong>claims</strong>, <strong>evidence</strong> and <strong>attacks</strong> into one shared graph, and the answer is <strong>computed</strong> from that graph by a rule that has been proven since 1995. The graph is the proof.</p>
+
+  <h2>1. The argument graph</h2>
+  <p>Everything any agent or human does ends up as one of seven record types. The graph is append-only: there is no update or delete anywhere in the code. A retraction is a new attack; a correction is a new claim.</p>
+
+  <figure>
+    <div class="diagram">
+    <svg viewBox="0 0 880 330" role="img" aria-label="Schema of the argument graph: Question, Claim, Evidence, Support, Attack, Audit, Verdict">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--muted)"/>
+        </marker>
+        <marker id="arr-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--reject)"/>
+        </marker>
+        <marker id="arr-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--evidence)"/>
+        </marker>
+        <marker id="arr-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/>
+        </marker>
+      </defs>
+      <!-- Question -->
+      <rect class="box" x="20" y="20" width="190" height="64" rx="6"/>
+      <text x="32" y="44" class="title">Question</text>
+      <text x="32" y="64" class="mono muted">text · domain · context</text>
+
+      <!-- Claim -->
+      <rect class="box claim" x="330" y="20" width="220" height="80" rx="6"/>
+      <text x="342" y="44" class="title">Claim</text>
+      <text x="342" y="64" class="mono muted">kind(params) · text · author</text>
+      <text x="342" y="82" class="mono muted">e.g. vulnerable(requests, 2.28.0, GHSA-…)</text>
+
+      <!-- Evidence -->
+      <rect class="box ev" x="330" y="200" width="220" height="96" rx="6"/>
+      <text x="342" y="224" class="title">Evidence</text>
+      <text x="342" y="244" class="mono muted">tool · args · raw output</text>
+      <text x="342" y="262" class="mono muted">sha256(output) · ok · timestamp</text>
+      <text x="342" y="282" class="mono muted">author = runtime, always</text>
+
+      <!-- Support -->
+      <rect class="box" x="90" y="200" width="170" height="64" rx="6"/>
+      <text x="102" y="224" class="title">Support</text>
+      <text x="102" y="244" class="mono muted">claim ← evidence · quote</text>
+
+      <!-- Attack -->
+      <rect class="box" x="640" y="20" width="220" height="64" rx="6"/>
+      <text x="652" y="44" class="title">Attack</text>
+      <text x="652" y="64" class="mono muted">attacker claim → target claim</text>
+
+      <!-- Audit -->
+      <rect class="box" x="90" y="110" width="170" height="56" rx="6"/>
+      <text x="102" y="134" class="title">Audit</text>
+      <text x="102" y="152" class="mono muted">support · ok? · note</text>
+
+      <!-- Verdict -->
+      <rect class="box acc" x="640" y="200" width="220" height="80" rx="6"/>
+      <text x="652" y="224" class="title">Verdict</text>
+      <text x="652" y="244" class="mono muted">claim → accepted | rejected |</text>
+      <text x="652" y="262" class="mono muted">undecided | unsupported</text>
+
+      <!-- edges -->
+      <path class="edge" d="M210 52 H330" marker-end="url(#arr)"/>
+      <text x="236" y="46" class="label">has many</text>
+      <path class="edge attack" d="M550 40 H640" marker-end="url(#arr-red)"/>
+      <path class="edge attack" d="M640 70 H550" marker-end="url(#arr-red)"/>
+      <text x="565" y="60" class="label">is itself a claim</text>
+      <path class="edge support" d="M260 232 H330" marker-end="url(#arr-blue)"/>
+      <path class="edge support" d="M175 200 V100 H330" marker-end="url(#arr-blue)"/>
+      <text x="184" y="94" class="label">backs</text>
+      <path class="edge" d="M175 166 V200" marker-end="url(#arr)"/>
+      <text x="184" y="188" class="label">checks quote ⊂ output</text>
+      <path class="edge loop" d="M550 260 H640" marker-end="url(#arr-acc)"/>
+      <text x="556" y="252" class="label">computed, not written</text>
+      <path class="edge" d="M115 84 V200"/>
+      <text x="30" y="150" class="label">question</text>
+      <text x="30" y="164" class="label">owns all</text>
+    </svg>
+    </div>
+    <figcaption>Evidence is the only node the LLM agents cannot write. It is created by the tool runtime the moment a tool returns, hashed, and handed back to the agent as an id to cite. A claim with no surviving Support edge is invisible to the verdict.</figcaption>
+  </figure>
+
+  <div class="grid2">
+    <div>
+      <h3>Invariants the graph enforces</h3>
+      <ol class="rules">
+        <li>No support, no standing. An unsupported claim can neither be accepted nor attack anything.</li>
+        <li>Evidence is written only by the runtime and never edited; its hash is part of the record.</li>
+        <li>An attack is a claim, so it can be attacked back and needs its own evidence.</li>
+        <li>Every node carries an author: role + run id for agents, user id for humans.</li>
+        <li>Nothing is deleted. A failed audit is a new node, not a removed one.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Where it lives</h3>
+      <p>Seven tables in SQLite for a laptop, Postgres for a service; SQLAlchemy Core, JSON columns for the flexible parts. <code>src/verdict/graph</code>. Loading a question returns an immutable <code>Graph</code> snapshot the engine and the roles read from.</p>
+    </div>
+  </div>
+
+  <h2>2. How the verdict is computed</h2>
+  <p>The graph induces an abstract argumentation framework (Dung, 1995): supported claims are the arguments, attack edges are the attack relation. The engine computes the <strong>grounded extension</strong>: the unique, most skeptical set of claims that defend themselves against every attacker. It is a fixed-point iteration, pure Python, a few milliseconds for thousands of nodes.</p>
+
+  <figure>
+    <div class="diagram">
+    <svg viewBox="0 0 880 250" role="img" aria-label="Worked example: the safe claim is rejected because the vulnerable claim attacks it and survives">
+      <!-- claims -->
+      <rect class="box rej" x="40" y="40" width="300" height="86" rx="6"/>
+      <text x="54" y="64" class="title">safe(requests, 2.28.0)</text>
+      <text x="54" y="84" class="mono muted">by claimant · cites osv_query → "advisories":[]</text>
+      <text x="54" y="106" class="mono" style="fill:var(--reject)">REJECTED · attacked by an accepted claim</text>
+
+      <rect class="box acc" x="540" y="40" width="300" height="86" rx="6"/>
+      <text x="554" y="64" class="title">vulnerable(requests, 2.28.0, GHSA-9wx4)</text>
+      <text x="554" y="84" class="mono muted">by adversary · cites osv_advisory → "fixed":"2.32.0"</text>
+      <text x="554" y="106" class="mono" style="fill:var(--accent)">ACCEPTED · no attacks</text>
+
+      <path class="edge attack" d="M540 83 H340" marker-end="url(#arr-red)"/>
+      <text x="380" y="74" class="label">attacks: the claimant queried the wrong version</text>
+
+      <!-- evidence -->
+      <rect class="box ev" x="40" y="170" width="300" height="52" rx="6"/>
+      <text x="54" y="192" class="mono">e_1  osv_query(pypi, requests, 2.32.4)</text>
+      <text x="54" y="210" class="mono muted">audit ✓ quote verbatim · ✗ not entailed: wrong version</text>
+      <rect class="box ev" x="540" y="170" width="300" height="52" rx="6"/>
+      <text x="554" y="192" class="mono">e_2  osv_advisory(GHSA-9wx4-h78v-vm56)</text>
+      <text x="554" y="210" class="mono muted">audit ✓ verbatim · ✓ entailed</text>
+      <path class="edge support" d="M190 170 V126" marker-end="url(#arr-blue)"/>
+      <path class="edge support" d="M690 170 V126" marker-end="url(#arr-blue)"/>
+    </svg>
+    </div>
+    <figcaption>A real shape from the eval set. The claimant's citation was verbatim but the auditor judged it not entailed (it answered for a different version), so the support fell away. Even without that, the adversary's cited attack would have flipped the label. Nobody "decided"; the labelling did.</figcaption>
+  </figure>
+
+  <div class="grid2">
+    <div>
+      <h3>Labelling rules</h3>
+      <ol class="rules">
+        <li>Drop every claim with no surviving support → <span class="pill">unsupported</span>.</li>
+        <li>A claim whose attackers are all rejected (or that has none) → <span class="pill acc">accepted</span>.</li>
+        <li>A claim with an accepted attacker → <span class="pill rej">rejected</span>.</li>
+        <li>Repeat until nothing changes. Whatever is left → <span class="pill und">undecided</span>.</li>
+      </ol>
+    </div>
+    <div>
+      <h3>Why grounded, not "preferred"</h3>
+      <p>Other semantics let the system choose between several self-consistent worlds. Grounded never chooses: two claims that only attack each other stay <em>undecided</em>, and the page shows exactly which attack nobody could settle. For a decision system, saying "I don't know, and here is why" is the feature.</p>
+    </div>
+  </div>
+
+  <h2>3. The court loop</h2>
+  <p>There is no scheduler deciding who speaks next. Each round, the loop looks at the graph and fires whichever roles have a trigger condition. A round that writes nothing is a fixed point; then the verdict is frozen with the graph. Budgets (rounds, tool calls, wall-clock) are hard stops.</p>
+
+  <figure>
+    <div class="diagram">
+    <svg viewBox="0 0 880 300" role="img" aria-label="Court loop: triggers in the graph fire the claimant, investigator, auditor and adversary roles">
+      <!-- graph in the middle -->
+      <rect class="box" x="330" y="100" width="220" height="100" rx="8"/>
+      <text x="440" y="140" text-anchor="middle" class="title">argument graph</text>
+      <text x="440" y="160" text-anchor="middle" class="mono muted">claims · evidence · attacks</text>
+      <text x="440" y="178" text-anchor="middle" class="mono muted">provisional verdict each round</text>
+
+      <!-- roles -->
+      <rect class="box role" x="30" y="30" width="230" height="60" rx="6"/>
+      <text x="44" y="52" class="title">Claimant</text>
+      <text x="44" y="72" class="mono muted">trigger: no claims yet</text>
+
+      <rect class="box role" x="30" y="210" width="230" height="60" rx="6"/>
+      <text x="44" y="232" class="title">Investigator</text>
+      <text x="44" y="252" class="mono muted">trigger: claim unsupported, or attacking</text>
+
+      <rect class="box role" x="620" y="30" width="230" height="60" rx="6"/>
+      <text x="634" y="52" class="title">Auditor</text>
+      <text x="634" y="72" class="mono muted">trigger: citation not yet audited</text>
+
+      <rect class="box role" x="620" y="210" width="230" height="60" rx="6"/>
+      <text x="634" y="232" class="title">Adversary</text>
+      <text x="634" y="252" class="mono muted">trigger: claim provisionally accepted</text>
+
+      <!-- arrows: roles write into graph -->
+      <path class="edge loop" d="M260 60 C300 60 300 120 330 120" marker-end="url(#arr-acc)"/>
+      <text x="262" y="100" class="label">claims + citations</text>
+      <path class="edge loop" d="M260 240 C300 240 300 180 330 180" marker-end="url(#arr-acc)"/>
+      <text x="262" y="205" class="label">citations or attacks</text>
+      <path class="edge loop" d="M620 60 C580 60 580 120 550 120" marker-end="url(#arr-acc)"/>
+      <text x="556" y="100" class="label">audit ✓ / ✗</text>
+      <path class="edge loop" d="M620 240 C580 240 580 180 550 180" marker-end="url(#arr-acc)"/>
+      <text x="556" y="205" class="label">cited attacks</text>
+
+      <!-- tools -->
+      <rect class="box ev" x="330" y="240" width="220" height="44" rx="6"/>
+      <text x="440" y="259" text-anchor="middle" class="mono">tool runtime → Evidence</text>
+      <text x="440" y="276" text-anchor="middle" class="mono muted">OSV · deps.dev · PyPI · npm · GitHub</text>
+      <path class="edge" d="M440 240 V200" marker-end="url(#arr)"/>
+
+      <text x="440" y="40" text-anchor="middle" class="label">round n → fixed point or budget → verdict frozen</text>
+      <path class="edge" d="M330 48 H550" marker-end="url(#arr)"/>
+    </svg>
+    </div>
+    <figcaption>Each firing is one bounded episode: the agent gets the relevant subgraph, calls tools (several per turn, run concurrently), and must finish through a <code>submit</code> tool whose payload is validated against the role's schema. Every tool call becomes Evidence before the agent sees the result.</figcaption>
+  </figure>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Role</th><th>Exists to</th><th>Tools</th><th>May write</th></tr></thead>
+    <tbody>
+      <tr><td>Claimant</td><td>open the case: investigate and state what the evidence supports</td><td>domain tools</td><td>claims, citations</td></tr>
+      <tr><td>Investigator</td><td>get primary sources for claims that lack them; attack claims the evidence contradicts</td><td>domain tools</td><td>citations, attacks</td></tr>
+      <tr><td>Auditor</td><td>compare each quote to the raw tool output; judge whether it entails the claim</td><td>none — reads raw evidence only</td><td>audit records</td></tr>
+      <tr><td>Adversary</td><td>break accepted claims: wrong version, transitive deps, misread ranges, stale data</td><td>domain tools</td><td>attacking claims, or "gave up"</td></tr>
+      <tr><td>Human</td><td>join with the same standing as an agent</td><td>anything</td><td>claims, attacks</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>4. Tool calls as evidence</h2>
+  <p>A tool is a typed Python function; the decorator derives its JSON schema from the signature and docstring. The runtime executes it, serializes the result, hashes it, and writes the Evidence node. The agent receives <code>{evidence_id, ok, summary, output}</code> and can only cite what it caused to be produced. Identical calls within a case return the same node, so evidence cannot be inflated by repetition. Failures are evidence too (<code>ok:false</code>) and a citation to one fails audit automatically.</p>
+  <pre><code>@tool
+def osv_query(ecosystem: str, package: str, version: str) -> VulnQuery:
+    """Query OSV.dev for advisories affecting one exact package version."""
+    ...
+
+runtime.call("osv_query", {"ecosystem": "pypi", "package": "requests", "version": "2.28.0"})
+# → Evidence(id="e_4f2…", tool="osv_query", output='{"advisories":[{"id":"GHSA-9wx4…', output_hash="…")</code></pre>
+
+  <h2>5. Domains are plug-ins</h2>
+  <p>The court, roles, runtime and engine never change per domain. A domain contributes a claim vocabulary (kinds with identifying parameters, so two agents asserting the same thing produce the same key), a tool set, role guidance, and which kinds are conclusions. The first domain is supply-chain trust; incident root-cause, vendor due diligence or clinical evidence would reuse everything but this file.</p>
+
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Supply-chain claim kinds</th><th>Backed by</th></tr></thead>
+    <tbody>
+      <tr><td><code>vulnerable</code> · <code>fixed_in</code> · <code>no_known_vulnerabilities</code> · <code>transitive_vulnerable</code></td><td>OSV.dev query + advisory, deps.dev dependency graph</td></tr>
+      <tr><td><code>yanked</code> · <code>version_missing</code> · <code>install_scripts</code> · <code>new_or_obscure</code> · <code>license</code></td><td>PyPI JSON API, npm registry, deps.dev version info</td></tr>
+      <tr><td><code>actively_maintained</code> · <code>unmaintained</code></td><td>GitHub repo activity, deps.dev project + OpenSSF Scorecard</td></tr>
+      <tr><td><code>safe_to_adopt</code> · <code>not_safe_to_adopt</code> <span class="pill">conclusion</span></td><td>whatever survives — this is the claim the adversary goes after</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>6. Code map</h2>
+  <div class="tablewrap">
+  <table>
+    <thead><tr><th>Module</th><th>Responsibility</th><th>Tests</th></tr></thead>
+    <tbody>
+      <tr><td><code>graph/models.py</code> · <code>graph/store.py</code></td><td>node types, append-only SQLite/Postgres store, write serialization across tool threads</td><td>round-trip, invariants, failed audit removes support</td></tr>
+      <tr><td><code>engine/grounded.py</code> · <code>engine/verdict.py</code></td><td>grounded labelling; graph → framework → labels; one-line explanations</td><td>reinstatement, mutual attack, odd/even cycles, self-attack, 5k chain</td></tr>
+      <tr><td><code>tools/registry.py</code></td><td><code>@tool</code>, schema derivation, runtime with provenance + dedupe</td><td>schema, dedupe, failures as evidence</td></tr>
+      <tr><td><code>llm/client.py</code> · <code>llm/episode.py</code></td><td>OpenAI-compatible chat (Ollama, Groq, OpenRouter…); bounded episode with parallel tool calls and validated submit</td><td>scripted LLM: parallel calls, rejected submit, max steps</td></tr>
+      <tr><td><code>court/roles.py</code> · <code>court/loop.py</code></td><td>role prompts + output schemas; trigger loop, fixed point, budgets, audit pipeline</td><td>end-to-end: safe claim overturned; fabricated quote thrown out</td></tr>
+      <tr><td><code>domains/supply_chain/</code></td><td>13 claim kinds, 8 live tools, adversary guidance</td><td>recorded OSV / deps.dev / GitHub shapes; PyPI + npm live</td></tr>
+      <tr><td><code>cli.py</code> · <code>evals.py</code></td><td><code>ask · show · list · doctor · eval</code>; benchmark of historical incidents</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>7. What "production" means here</h2>
+  <div class="grid2">
+    <div>
+      <p><strong>Reproducible.</strong> Same graph, same verdict, always. A case can be reopened months later with new evidence; the old verdict stays in history.</p>
+      <p><strong>Auditable.</strong> Every accepted claim traces to a tool, its arguments, a hash of its raw output, and a quote the auditor checked against that output.</p>
+    </div>
+    <div>
+      <p><strong>Bounded.</strong> Rounds, tool calls, episode steps and wall-clock each have hard limits; the verdict records why the loop stopped.</p>
+      <p><strong>Measured.</strong> <code>verdict eval</code> runs real historical attacks (event-stream, ua-parser-js, colors, node-ipc, requests CVEs) and scores conclusion accuracy, required claim kinds, and citation faithfulness.</p>
+    </div>
+  </div>
+
+  <h2>8. Next</h2>
+  <p>FastAPI service with a job queue, GitHub App that opens a case on every dependency change and comments the proof, a public verdict feed where anyone can inspect a graph, and a second domain to prove the plug-in boundary. Source: <a href="https://github.com/kabirthecoder/verdict-engine">github.com/kabirthecoder/verdict-engine</a>.</p>
+</main>
