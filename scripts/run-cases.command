@@ -31,6 +31,15 @@ fi
 
 # Pick a model: prefer what is already pulled in Ollama, else pull a modest tool-capable one.
 if command -v ollama >/dev/null 2>&1; then
+  if ! curl -s -m 3 http://localhost:11434/api/tags >/dev/null; then
+    echo "== ollama installed but not running; starting it"
+    open -a Ollama 2>/dev/null || (nohup ollama serve >"$SYNC/ollama.log" 2>&1 &)
+    for i in $(seq 1 40); do
+      sleep 1
+      curl -s -m 3 http://localhost:11434/api/tags >/dev/null && break
+    done
+    curl -s -m 3 http://localhost:11434/api/tags >/dev/null || { echo "== ollama did not start"; exit 1; }
+  fi
   echo "== ollama models:"
   ollama list || true
   MODEL=""
