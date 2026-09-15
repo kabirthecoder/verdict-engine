@@ -7,5 +7,6 @@
 - [x] Domain: supply-chain (OSV, deps.dev, PyPI, GitHub) with claim vocabulary
 - [x] CLI: `verdict ask`, `verdict show <question>` (graph + proof)
 - [x] Eval: historical incidents (xz, event-stream, ua-parser-js, colors.js, polyfill.io)
-- [ ] FastAPI service, GitHub App, public verdict feed
+- [x] FastAPI service (in-process jobs)
+- [ ] GitHub App, public verdict feed, queue-backed workers
 - [ ] Second domain
