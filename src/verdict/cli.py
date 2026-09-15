@@ -133,6 +133,43 @@ def doctor() -> None:
     console.print(t)
 
 
+@app.command("eval")
+def eval_cases(
+    cases: Annotated[str, typer.Option("--cases")] = "evals/supply_chain_cases.json",
+    only: Annotated[str | None, typer.Option("--only", help="run a single case id")] = None,
+    out: Annotated[str | None, typer.Option("--out", help="write JSON report here")] = None,
+) -> None:
+    """Run the historical-incident benchmark and score the court."""
+    from pathlib import Path
+
+    from verdict.evals import load_cases, run_case, summarize
+
+    settings = load_settings()
+    store = GraphStore(settings.database_url)
+    results = []
+    for case in load_cases(Path(cases)):
+        if only and case["id"] != only:
+            continue
+        console.print(f"[bold]{case['id']}[/bold] — {case['question']}")
+        r = run_case(case, store, settings)
+        mark = "[green]✓[/green]" if r.conclusion_ok else "[red]✗[/red]"
+        console.print(
+            f"  {mark} got {r.got} (expected {r.expected}) · kinds ok={r.kinds_ok} "
+            f"missing={r.missing_kinds} · faithful={r.faithful} · {r.tool_calls} calls · "
+            f"{r.seconds}s · case {r.question_id}"
+        )
+        results.append(r)
+    report = summarize(results)
+    console.print(
+        f"[bold]conclusion {report['conclusion_accuracy']:.0%} · "
+        f"kinds {report['kinds_accuracy']:.0%} · faithful {report['faithfulness']:.0%} · "
+        f"avg {report['avg_tool_calls']:.0f} calls[/bold]"
+    )
+    if out:
+        Path(out).write_text(json.dumps(report, indent=2))
+        console.print(f"[dim]report written to {out}[/dim]")
+
+
 # ------------------------------------------------------------------ rendering
 
 

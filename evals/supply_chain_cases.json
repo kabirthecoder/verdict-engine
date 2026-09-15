@@ -1,0 +1,53 @@
+{
+  "_comment": "Historical supply-chain cases with known answers. 'expect' is the conclusion the court must reach; 'expect_kinds' are claim kinds that must be ACCEPTED in the proof. 'safe' expectations can drift as new advisories are published; 'not_safe' ones don't.",
+  "cases": [
+    {
+      "id": "requests-2.28.0",
+      "question": "Is requests 2.28.0 safe to adopt?",
+      "context": {"ecosystem": "pypi", "package": "requests", "version": "2.28.0"},
+      "expect": "not_safe_to_adopt",
+      "expect_kinds": ["vulnerable"],
+      "why": "CVE-2023-32681 (proxy-auth leak, fixed 2.31.0) and CVE-2024-35195 (verify=False persistence, fixed 2.32.0)."
+    },
+    {
+      "id": "event-stream-3.3.6",
+      "question": "Is event-stream 3.3.6 safe to adopt?",
+      "context": {"ecosystem": "npm", "package": "event-stream", "version": "3.3.6"},
+      "expect": "not_safe_to_adopt",
+      "expect_kinds": ["version_missing"],
+      "why": "2018 attack: 3.3.6 pulled in flatmap-stream with a bitcoin-wallet stealer. The version was unpublished from npm; it does not exist any more."
+    },
+    {
+      "id": "ua-parser-js-0.7.29",
+      "question": "Is ua-parser-js 0.7.29 safe to adopt?",
+      "context": {"ecosystem": "npm", "package": "ua-parser-js", "version": "0.7.29"},
+      "expect": "not_safe_to_adopt",
+      "expect_kinds": ["vulnerable"],
+      "why": "Oct 2021 account hijack shipped a cryptominer + credential stealer (GHSA-pjwm-rvh2-c87w). Version was removed from npm."
+    },
+    {
+      "id": "colors-1.4.1",
+      "question": "Is colors 1.4.1 safe to adopt?",
+      "context": {"ecosystem": "npm", "package": "colors", "version": "1.4.1"},
+      "expect": "not_safe_to_adopt",
+      "expect_kinds": ["vulnerable"],
+      "why": "Jan 2022 maintainer sabotage: infinite loop printing garbage (GHSA-5rqg-jm4f-cqx7)."
+    },
+    {
+      "id": "node-ipc-10.1.1",
+      "question": "Is node-ipc 10.1.1 safe to adopt?",
+      "context": {"ecosystem": "npm", "package": "node-ipc", "version": "10.1.1"},
+      "expect": "not_safe_to_adopt",
+      "expect_kinds": ["vulnerable"],
+      "why": "Mar 2022 protestware: overwrote files on machines geolocated in RU/BY (GHSA-97m3-w2cp-4xx6, CVE-2022-23812)."
+    },
+    {
+      "id": "requests-latest-safe",
+      "question": "Is requests 2.32.4 safe to adopt?",
+      "context": {"ecosystem": "pypi", "package": "requests", "version": "2.32.4"},
+      "expect": "safe_to_adopt",
+      "expect_kinds": ["no_known_vulnerabilities"],
+      "why": "Control case. Actively maintained, no advisories at time of writing (may drift)."
+    }
+  ]
+}
