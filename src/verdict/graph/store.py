@@ -8,6 +8,7 @@ deliberately no update or delete methods.
 from __future__ import annotations
 
 import json
+import threading
 from datetime import datetime
 from typing import Any
 
@@ -142,12 +143,14 @@ class GraphStore:
             if url in ("sqlite://", "sqlite:///:memory:"):
                 kwargs["poolclass"] = StaticPool
         self.engine: Engine = create_engine(url, future=True, **kwargs)
+        # tools run concurrently; serialize writes (sqlite has a single writer anyway)
+        self._write_lock = threading.RLock()
         metadata.create_all(self.engine)
 
     # --- writes (append-only) ------------------------------------------------
 
     def add_question(self, q: Question) -> Question:
-        with self.engine.begin() as cx:
+        with self._write_lock, self.engine.begin() as cx:
             cx.execute(
                 insert(questions).values(
                     id=q.id,
@@ -162,7 +165,7 @@ class GraphStore:
 
     def add_claim(self, c: Claim) -> Claim:
         self._require_question(c.question_id)
-        with self.engine.begin() as cx:
+        with self._write_lock, self.engine.begin() as cx:
             cx.execute(
                 insert(claims).values(
                     id=c.id,
@@ -178,7 +181,7 @@ class GraphStore:
 
     def add_evidence(self, e: Evidence) -> Evidence:
         self._require_question(e.question_id)
-        with self.engine.begin() as cx:
+        with self._write_lock, self.engine.begin() as cx:
             cx.execute(
                 insert(evidence).values(
                     id=e.id,
@@ -200,7 +203,7 @@ class GraphStore:
         e = self._get_evidence(s.evidence_id)
         if c.question_id != e.question_id:
             raise ValueError("support must link a claim and evidence of the same question")
-        with self.engine.begin() as cx:
+        with self._write_lock, self.engine.begin() as cx:
             cx.execute(
                 insert(supports).values(
                     id=s.id,
@@ -218,7 +221,7 @@ class GraphStore:
         dst = self._get_claim(a.target_id)
         if src.question_id != dst.question_id:
             raise ValueError("attack must link two claims of the same question")
-        with self.engine.begin() as cx:
+        with self._write_lock, self.engine.begin() as cx:
             cx.execute(
                 insert(attacks).values(
                     id=a.id,
@@ -233,7 +236,7 @@ class GraphStore:
 
     def add_audit(self, u: Audit) -> Audit:
         self._get_support(u.support_id)
-        with self.engine.begin() as cx:
+        with self._write_lock, self.engine.begin() as cx:
             cx.execute(
                 insert(audits).values(
                     id=u.id,
@@ -248,7 +251,7 @@ class GraphStore:
 
     def add_verdict(self, v: Verdict) -> Verdict:
         self._require_question(v.question_id)
-        with self.engine.begin() as cx:
+        with self._write_lock, self.engine.begin() as cx:
             cx.execute(
                 insert(verdicts).values(
                     id=v.id,
