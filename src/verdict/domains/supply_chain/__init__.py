@@ -130,6 +130,7 @@ DOMAIN = register(
         tools=TOOLS,
         claim_kinds=CLAIM_KINDS,
         guidance=GUIDANCE,
+        conclusion_kinds=["safe_to_adopt", "not_safe_to_adopt"],
     )
 )
 from verdict.domains.base import _REGISTRY  # noqa: E402

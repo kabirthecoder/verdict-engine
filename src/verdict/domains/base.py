@@ -27,6 +27,8 @@ class Domain:
     claim_kinds: list[ClaimKind]
     # Extra guidance per role, appended to the generic role prompt.
     guidance: dict[str, str] = field(default_factory=dict)
+    # Claim kinds that state the overall answer (shown as the headline of a case).
+    conclusion_kinds: list[str] = field(default_factory=list)
 
     def vocabulary(self) -> str:
         return "\n".join(k.render() for k in self.claim_kinds)
